@@ -16,8 +16,8 @@ palette = [
     ('prompt_ok', 'light green,bold', 'default'),
     ('prompt_paused', 'yellow,bold', 'default'),
     ('prompt_err', 'light red,bold', 'default'),
-    ('inp_plain', 'white,bold', 'default'),
-    ('body_plain', 'white', 'default'),
+    ('inp_plain', 'bold', 'default'),
+    ('body_plain', '', 'default'),
     ('err_bar', 'light red,bold', 'default'),
 ]
 
