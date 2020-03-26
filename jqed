@@ -85,11 +85,11 @@ class JqManager:
             if not self.paused:
                 self.update_body()
         else:
-            if self.out_data != '':
-                new_scroll_line = min(len(self.out_data.split('\n')) - int(loop.screen_size[1] / 2), self.scroll_line)
+            if self.out_err == '':
+                new_scroll_line = min(max(len(self.out_data.split('\n')) - int(loop.screen_size[1] / 2), 0), self.scroll_line)
                 if new_scroll_line != self.scroll_line:
                     self.scroll_line = new_scroll_line
-                    self.update_body()
+                self.update_body()
             self.loop.event_loop.remove_watch_file(self.jq_proc.stdout.fileno())
             self.jq_proc.stdout.close()
             self.jq_proc.stdin.close()
@@ -111,6 +111,9 @@ class JqManager:
                 inp.set_caption([('prompt_paused', PAUSED_PROMPT_A), ('prompt_err', PAUSED_PROMPT_B)])
             else:
                 inp.set_caption(('prompt_err', PROMPT))
+        elif self.out_data == '':
+            self.last_out_data = ''
+            self.update_body()
 
     def respawn_jq(self, _, query):
         if self.jq_proc is not None:
@@ -168,11 +171,11 @@ class BetterEdit(urwid_readline.ReadlineEdit):
             if key == 'up':
                 jq_man.scroll_line = max(0, jq_man.scroll_line - 1)
             elif key == 'down':
-                jq_man.scroll_line = min(len(jq_man.out_data.split('\n')) - int(loop.screen_size[1] / 2), jq_man.scroll_line + 1)
+                jq_man.scroll_line = min(max(len(jq_man.out_data.split('\n')) - int(loop.screen_size[1] / 2), 0), jq_man.scroll_line + 1)
             elif key == 'page up':
                 jq_man.scroll_line = max(0, jq_man.scroll_line - int(loop.screen_size[1] / 2))
             elif key == 'page down':
-                jq_man.scroll_line = min(len(jq_man.out_data.split('\n')) - int(loop.screen_size[1] / 2), jq_man.scroll_line + int(loop.screen_size[1] / 2))
+                jq_man.scroll_line = min(max(len(jq_man.out_data.split('\n')) - int(loop.screen_size[1] / 2), 0), jq_man.scroll_line + int(loop.screen_size[1] / 2))
             jq_man.update_body()
         else:
             return super().keypress(size, key)
