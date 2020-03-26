@@ -44,7 +44,7 @@ class JqManager:
                 sys.stderr.write('jq does not seem to be installed\nPerhaps you want: sudo apt install jq\n')
             exit(1)
         self.jq_proc = None
-        self.respawn_jq(None, '')
+        self.respawn_jq(None, inp.get_edit_text())
 
         urwid.connect_signal(inp, 'change', self.respawn_jq)
     
@@ -195,7 +195,11 @@ class BetterEdit(urwid.Edit):
 
 if __name__ == '__main__':
     if sys.stdin.isatty():
-        print('error: jqed requires some data piped on standard input, for example try: `ip --json link | jqed`')
+        sys.stderr.write('error: jqed requires some data piped on standard input, for example try: `ip --json link | jqed`\n')
+        exit(1)
+
+    if len(sys.argv) > 2:
+        sys.stderr.write('usage: jqed [initial expression]\n')
         exit(1)
 
     # Preserve original stdio, and replace stdio with /dev/tty
@@ -209,6 +213,10 @@ if __name__ == '__main__':
 
     # Create gui
     inp = BetterEdit(('prompt_ok', PROMPT))
+    if len(sys.argv) == 2:
+        # If the user specified an argument, use it as an initial expression
+        inp.set_edit_text(sys.argv[1])
+        inp.set_edit_pos(len(sys.argv[1]))
     body = urwid.Text('')
     body_filler = urwid.AttrMap(urwid.Filler(body, 'top'), 'body_plain')
     err_bar = urwid.Text(('inp_plain', 'HELP: ^C: Exit, ^P: Pause, jq manual: https://stedolan.github.io/jq/manual'))
