@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import sys
 import urwid
+import urwid_readline
 import os
 import subprocess as sp
 import shutil
@@ -149,15 +150,9 @@ class JqManager:
         else:
             body.set_text('\n'.join(self.last_out_data.split('\n')[self.scroll_line:]))
 
-class BetterEdit(urwid.Edit):
+class BetterEdit(urwid_readline.ReadlineEdit):
     def keypress(self, size, key):
-        if key == 'ctrl w':
-            new_words = self.edit_text.rstrip().split(' ')[:-1]
-            if new_words:
-                self.edit_text = ' '.join(new_words) + ' '
-            else:
-                self.edit_text = ''
-        elif key == 'ctrl left':
+        if key == 'ctrl left':
             try:
                 self.edit_pos = self.edit_text[:self.edit_pos].rindex(' ')
             except ValueError:
@@ -167,14 +162,8 @@ class BetterEdit(urwid.Edit):
                 self.edit_pos += self.edit_text[self.edit_pos:].index(' ') + 1
             except ValueError:
                 self.edit_pos = len(self.edit_text)
-        elif key == 'esc':
-            raise KeyboardInterrupt()
         elif key == 'ctrl p':
             jq_man.toggle_pause()
-        elif 'ctrl' in key:
-            new_text = '<{}>'.format(key)
-            self.edit_text = self.edit_text + new_text
-            self.edit_pos += len(new_text)
         elif key in ('up', 'down', 'page up', 'page down'):
             if key == 'up':
                 jq_man.scroll_line = max(0, jq_man.scroll_line - 1)
@@ -185,10 +174,6 @@ class BetterEdit(urwid.Edit):
             elif key == 'page down':
                 jq_man.scroll_line = min(len(jq_man.out_data.split('\n')) - int(loop.screen_size[1] / 2), jq_man.scroll_line + int(loop.screen_size[1] / 2))
             jq_man.update_body()
-        elif 'up' in key:
-            new_text = '<{}>'.format(key)
-            self.edit_text = self.edit_text + new_text
-            self.edit_pos += len(new_text)
         else:
             return super().keypress(size, key)
 

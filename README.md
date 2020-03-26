@@ -9,7 +9,8 @@ A tool inspired by [Ultimate Plumber](https://github.com/akavel/up) that uses [j
 ## Download & Install
 
 ```bash
-sudo apt install jq python3-urwid  # On MacOS: brew install jq && pip3 install urwid
+sudo apt install jq  # On MacOS: brew install jq
+pip3 install urwid urwid-readline
 cd ~/Downloads
 git clone https://github.com/Wazzaps/jqed
 sudo install -o root -g root ./jqed/jqed /usr/bin/
