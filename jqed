@@ -5,12 +5,16 @@ import os
 import subprocess as sp
 import shutil
 import shlex
+import platform
+import re
 
-VERSION = 'v0.1.0 (2020-03-25)'
+VERSION = 'v0.1.1 (2020-03-26)'
 
 PROMPT = 'jq> '
 PAUSED_PROMPT_A = '||'
 PAUSED_PROMPT_B = '> '
+
+IS_WSL = "Microsoft" in platform.platform()
 
 palette = [
     ('prompt_ok', 'light green,bold', 'default'),
@@ -193,6 +197,17 @@ class BetterEdit(urwid.Edit):
             return super().keypress(size, key)
 
 
+class WSLScreen(urwid.raw_display.Screen):
+    """
+    This class is used to fix issue #6, where urwid has artifacts under WSL
+    """
+    def write(self, data):
+        # replace urwid's SI/SO, which produce artifacts under WSL.
+        # at some point we may figure out what they actually do.
+        data = re.sub("[\x0e\x0f]", "", data)
+        super().write(data)
+
+
 if __name__ == '__main__':
     if sys.stdin.isatty():
         print('error: jqed requires some data piped on standard input, for example try: `ip --json link | jqed`')
@@ -207,6 +222,14 @@ if __name__ == '__main__':
     sys.stdin = open('/dev/tty', 'rb')
     sys.stdout = open('/dev/tty', 'wb')
 
+    # Apparently urwid has some artifacts with WSL, see issue #6
+    # Hopefully this won't break WSL2
+    if IS_WSL:
+        urwid_screen = WSLScreen()
+    else:
+        urwid_screen = urwid.raw_display.Screen()
+    
+
     # Create gui
     inp = BetterEdit(('prompt_ok', PROMPT))
     body = urwid.Text('')
@@ -219,7 +242,7 @@ if __name__ == '__main__':
         footer=urwid.AttrMap(err_bar, 'err_bar'),
         focus_part='header'
     )
-    loop = urwid.MainLoop(frame, palette, handle_mouse=False)
+    loop = urwid.MainLoop(frame, palette, handle_mouse=False, screen=urwid_screen)
     try:
         jq_man = JqManager(orig_stdin, loop)
         loop.run()
