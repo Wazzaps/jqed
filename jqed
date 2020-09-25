@@ -6,10 +6,11 @@ import os
 import subprocess as sp
 import shutil
 import shlex
+import select
 import platform
 import re
 
-VERSION = 'v0.1.1 (2020-03-26)'
+VERSION = 'v0.1.2 (2020-09-25)'
 
 PROMPT = 'jq> '
 PAUSED_PROMPT_A = '||'
@@ -83,24 +84,45 @@ class JqManager:
             self.loop.event_loop.watch_file(self.inp_file.fileno(), self._file_avail_cb)
 
     def _jq_out_avail_cb(self):
-        chunk = os.read(self.jq_proc.stdout.fileno(), 1024).decode()
+        if self.jq_proc.stdout not in select.select([self.jq_proc.stdout], [], [], 0)[0]:
+            # Ignore spurius calls
+            return
+
+        chunk = ''
+        while self.jq_proc.stdout in select.select([self.jq_proc.stdout], [], [], 0)[0]:
+            new_chunk = os.read(self.jq_proc.stdout.fileno(), 1024).decode()
+            if len(new_chunk) == 0:
+                break
+            chunk += new_chunk
+
         if len(chunk) != 0:
             self.out_data += chunk
             if not self.paused:
                 self.update_body()
         else:
             if self.out_err == '':
-                new_scroll_line = min(max(len(self.out_data.split('\n')) - int(loop.screen_size[1] / 2), 0), self.scroll_line)
-                if new_scroll_line != self.scroll_line:
-                    self.scroll_line = new_scroll_line
-                self.update_body()
+                if loop.screen_size is not None:
+                    new_scroll_line = min(max(len(self.out_data.split('\n')) - int(loop.screen_size[1] / 2), 0), self.scroll_line)
+                    if new_scroll_line != self.scroll_line:
+                        self.scroll_line = new_scroll_line
+                    self.update_body()
             self.loop.event_loop.remove_watch_file(self.jq_proc.stdout.fileno())
             self.jq_proc.stdout.close()
             self.jq_proc.stdin.close()
             self.jq_proc.wait()
     
     def _jq_err_avail_cb(self):
-        chunk = os.read(self.jq_proc.stderr.fileno(), 1024).decode()
+        if self.jq_proc.stderr not in select.select([self.jq_proc.stderr], [], [], 0)[0]:
+            # Ignore spurius calls
+            return
+
+        chunk = ''
+        while self.jq_proc.stderr in select.select([self.jq_proc.stderr], [], [], 0)[0]:
+            new_chunk = os.read(self.jq_proc.stderr.fileno(), 1024).decode()
+            if len(new_chunk) == 0:
+                break
+            chunk += new_chunk
+
         if len(chunk) != 0:
             self.out_err += chunk
             err_bar.set_text(self.out_err.replace(' (Unix shell quoting issues?)', '').strip())
@@ -141,21 +163,32 @@ class JqManager:
         else:
             inp.set_caption(('prompt_ok', PROMPT))
 
-        self.jq_proc = sp.Popen([self._jq_path, '-s', query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0)
+        self.jq_proc = sp.Popen([self._jq_path, query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0)
         try:
-            self.jq_proc.stdin.write(self.inp_data.encode())
-            if self.is_inp_data_done:
-                self.jq_proc.stdin.close()
-            self.loop.event_loop.watch_file(self.jq_proc.stdout.fileno(), self._jq_out_avail_cb)
-            self.loop.event_loop.watch_file(self.jq_proc.stderr.fileno(), self._jq_err_avail_cb)
+            encoded_inp_data = self.inp_data.encode()
+            try:
+                for offset in range(0, len(encoded_inp_data), 1024):
+                    self.jq_proc.stdin.write(encoded_inp_data[offset:offset+1024])
+                    self._jq_out_avail_cb()
+                    self._jq_err_avail_cb()
+                if self.is_inp_data_done:
+                    self.jq_proc.stdin.close()
+                self.loop.event_loop.watch_file(self.jq_proc.stdout.fileno(), self._jq_out_avail_cb)
+                self.loop.event_loop.watch_file(self.jq_proc.stderr.fileno(), self._jq_err_avail_cb)
+            except ValueError:
+                pass
         except BrokenPipeError:
             pass
 
     def update_body(self):
+        height = 256
+        if self.loop.screen_size is not None:
+            height = self.loop.screen_size[1]
+
         if self.out_data and not self.paused:
-            body.set_text('\n'.join(self.out_data.split('\n')[self.scroll_line:]))
+            body.set_text('\n'.join(self.out_data.split('\n')[self.scroll_line:][:height]))
         else:
-            body.set_text('\n'.join(self.last_out_data.split('\n')[self.scroll_line:]))
+            body.set_text('\n'.join(self.last_out_data.split('\n')[self.scroll_line:][:height]))
 
 class BetterEdit(urwid_readline.ReadlineEdit):
     def keypress(self, size, key):
