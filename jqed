@@ -137,7 +137,7 @@ class JqManager:
         else:
             inp.set_caption(('prompt_ok', PROMPT))
 
-        self.jq_proc = sp.Popen([self._jq_path, query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0)
+        self.jq_proc = sp.Popen([self._jq_path, '-s', query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0)
         try:
             self.jq_proc.stdin.write(self.inp_data.encode())
             if self.is_inp_data_done:
