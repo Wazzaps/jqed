@@ -55,11 +55,11 @@ class JqManager:
         urwid.connect_signal(inp, 'change', self.respawn_jq)
     
     def _file_avail_cb(self):
-        chunk = os.read(orig_stdin.fileno(), 1024).decode()
+        chunk = orig_stdin.read(1024)
         if len(chunk) != 0:
             self.inp_data += chunk
             try:
-                self.jq_proc.stdin.write(chunk.encode())
+                self.jq_proc.stdin.write(chunk)
             except ValueError:
                 # if `self.jq_proc.stdin` was closed
                 pass
@@ -94,7 +94,7 @@ class JqManager:
 
         chunk = ''
         while self.jq_proc.stdout in select.select([self.jq_proc.stdout], [], [], 0)[0]:
-            new_chunk = os.read(self.jq_proc.stdout.fileno(), 1024).decode()
+            new_chunk = self.jq_proc.stdout.read(1024)
             if len(new_chunk) == 0:
                 break
             chunk += new_chunk
@@ -122,7 +122,7 @@ class JqManager:
 
         chunk = ''
         while self.jq_proc.stderr in select.select([self.jq_proc.stderr], [], [], 0)[0]:
-            new_chunk = os.read(self.jq_proc.stderr.fileno(), 1024).decode()
+            new_chunk = self.jq_proc.stderr.read(1024)
             if len(new_chunk) == 0:
                 break
             chunk += new_chunk
@@ -167,12 +167,11 @@ class JqManager:
         else:
             inp.set_caption(('prompt_ok', PROMPT))
 
-        self.jq_proc = sp.Popen([self._jq_path, query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0)
+        self.jq_proc = sp.Popen([self._jq_path, query], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, bufsize=0, text=True)
         try:
-            encoded_inp_data = self.inp_data.encode()
             try:
-                for offset in range(0, len(encoded_inp_data), 1024):
-                    self.jq_proc.stdin.write(encoded_inp_data[offset:offset+1024])
+                for offset in range(0, len(self.inp_data), 1024):
+                    self.jq_proc.stdin.write(self.inp_data[offset:offset+1024])
                     self._jq_out_avail_cb()
                     self._jq_err_avail_cb()
                 if self.is_inp_data_done:
