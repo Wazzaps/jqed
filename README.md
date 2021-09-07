@@ -9,9 +9,12 @@ A tool inspired by [Ultimate Plumber](https://github.com/akavel/up) that uses [j
 ## Download & Install
 
 ```bash
-sudo apt install jq  # On MacOS: brew install jq
-pip3 install urwid urwid-readline
-cd ~/Downloads
-git clone https://github.com/Wazzaps/jqed
-sudo install -o root -g root ./jqed/jqed /usr/bin/
+sudo apt install jq  # <-- Install the jq tool, on MacOS install using `brew install jq`
+pip3 install jqed
+```
+
+## Usage / Examples
+```sh
+cat some_file.json | jqed
+ip --json link | jqed
 ```

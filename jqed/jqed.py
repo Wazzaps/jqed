@@ -10,7 +10,7 @@ import select
 import platform
 import re
 
-VERSION = 'v0.1.3 (2020-09-25)'
+VERSION = 'v0.1.4 (2021-09-07)'
 
 PROMPT = 'jq> '
 PAUSED_PROMPT_A = '||'
@@ -26,6 +26,15 @@ palette = [
     ('body_plain', '', 'default'),
     ('err_bar', 'light red,bold', 'default'),
 ]
+
+# Forgive me for I have sinned:
+inp = None
+err_bar = None
+orig_stdin = None
+orig_stdout = None
+body = None
+loop = None
+jq_man = None
 
 class JqManager:
     def __init__(self, inp_file, loop):
@@ -53,7 +62,7 @@ class JqManager:
         self.respawn_jq(None, inp.get_edit_text())
 
         urwid.connect_signal(inp, 'change', self.respawn_jq)
-    
+
     def _file_avail_cb(self):
         chunk = orig_stdin.read(1024)
         if len(chunk) != 0:
@@ -114,7 +123,7 @@ class JqManager:
             self.jq_proc.stdout.close()
             self.jq_proc.stdin.close()
             self.jq_proc.wait()
-    
+
     def _jq_err_avail_cb(self):
         if self.jq_proc.stderr not in select.select([self.jq_proc.stderr], [], [], 0)[0]:
             # Ignore spurius calls
@@ -232,7 +241,8 @@ class WSLScreen(urwid.raw_display.Screen):
         super().write(data)
 
 
-if __name__ == '__main__':
+def cli():
+    global inp, err_bar, orig_stdin, orig_stdout, body, loop, jq_man
     if sys.stdin.isatty():
         sys.stderr.write('error: jqed requires some data piped on standard input, for example try: `ip --json link | jqed`\n')
         exit(1)
@@ -256,7 +266,7 @@ if __name__ == '__main__':
         urwid_screen = WSLScreen()
     else:
         urwid_screen = urwid.raw_display.Screen()
-    
+
 
     # Create gui
     inp = BetterEdit(('prompt_ok', PROMPT))
@@ -291,3 +301,7 @@ if __name__ == '__main__':
         except BrokenPipeError:
             sys.stderr.write('jq {}\n'.format(line))
         exit(0)
+
+
+if __name__ == '__main__':
+    cli()
